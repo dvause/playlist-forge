@@ -5,7 +5,14 @@
       "Bash(npx sst@latest init:*)",
       "Bash(ls:*)",
       "Bash(npm run build:*)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(echo:*)",
+      "Bash(npx sst:*)",
+      "Bash(if [ -f .env.local ])",
+      "Bash(then grep \"YOUTUBE\" .env.local)",
+      "Bash(else echo \".env.local not found\")",
+      "Bash(fi)",
+      "Bash(then grep \"YOUTUBE_CLIENT\" .env.local)"
     ]
   }
 }
