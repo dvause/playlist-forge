@@ -1,5 +1,5 @@
 {
-  "name": "playlist-shuffler",
+  "name": "playlist-forge",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,7 +12,7 @@
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "sst": "3.17.25"
+    "sst": "^3.9.31"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
