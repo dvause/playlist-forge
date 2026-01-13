@@ -4,7 +4,7 @@
 export default $config({
   app(input) {
     return {
-      name: "playlist-shuffler",
+      name: "playlist-forge",
       removal: input?.stage === "production" ? "retain" : "remove",
       protect: ["production"].includes(input?.stage),
       home: "aws",
@@ -17,7 +17,7 @@ export default $config({
     const youtubeClientId = new sst.Secret("YouTubeClientId");
     const youtubeClientSecret = new sst.Secret("YouTubeClientSecret");
 
-    const web = new sst.aws.Nextjs("PlaylistShuffler", {
+    const web = new sst.aws.Nextjs("PlaylistForge", {
       environment: {
         SPOTIFY_CLIENT_ID: spotifyClientId.value,
         SPOTIFY_CLIENT_SECRET: spotifyClientSecret.value,

@@ -276,16 +276,84 @@ export async function getAllYouTubePlaylistTracks(
   return allTracks;
 }
 
-interface PlaylistItemResource {
-  id: string;
-  snippet: {
-    playlistId: string;
-    resourceId: {
-      kind: string;
-      videoId: string;
-    };
-    position: number;
-  };
+/**
+ * Finds the Longest Increasing Subsequence in an array of positions.
+ * Returns a Set of indices whose elements form the LIS.
+ * Items at these indices are already in correct relative order and don't need to move.
+ */
+function findLIS(arr: number[]): Set<number> {
+  const n = arr.length;
+  if (n === 0) return new Set();
+
+  // dp[i] = smallest ending value for LIS of length i+1
+  const dp: number[] = [];
+  // dpIdx[i] = index in arr of dp[i]
+  const dpIdx: number[] = [];
+  // parent[i] = index of previous element in LIS ending at i
+  const parent: number[] = new Array(n).fill(-1);
+
+  for (let i = 0; i < n; i++) {
+    // Binary search for position where arr[i] should go
+    let lo = 0;
+    let hi = dp.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (dp[mid] < arr[i]) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+
+    if (lo === dp.length) {
+      dp.push(arr[i]);
+      dpIdx.push(i);
+    } else {
+      dp[lo] = arr[i];
+      dpIdx[lo] = i;
+    }
+
+    if (lo > 0) {
+      parent[i] = dpIdx[lo - 1];
+    }
+  }
+
+  // Backtrack to get LIS indices
+  const lisIndices = new Set<number>();
+  let idx = dpIdx[dpIdx.length - 1];
+  while (idx !== -1) {
+    lisIndices.add(idx);
+    idx = parent[idx];
+  }
+
+  return lisIndices;
+}
+
+/**
+ * Updates a single playlist item's position using the YouTube API.
+ * Costs 50 quota units per call.
+ */
+async function updatePlaylistItemPosition(
+  accessToken: string,
+  playlistId: string,
+  playlistItemId: string,
+  videoId: string,
+  newPosition: number
+): Promise<void> {
+  await youtubeFetch('/playlistItems?part=snippet', accessToken, {
+    method: 'PUT',
+    body: JSON.stringify({
+      id: playlistItemId,
+      snippet: {
+        playlistId,
+        resourceId: {
+          kind: 'youtube#video',
+          videoId,
+        },
+        position: newPosition,
+      },
+    }),
+  });
 }
 
 export async function reorderYouTubePlaylist(
@@ -293,49 +361,50 @@ export async function reorderYouTubePlaylist(
   playlistId: string,
   tracks: Track[]
 ): Promise<void> {
-  // YouTube requires moving items one at a time
-  // Strategy: Delete all items and re-add them in the new order
-  // This is more reliable than trying to calculate minimal moves
+  // Edge cases: nothing to reorder
+  if (tracks.length <= 1) return;
 
-  // First, get all current playlist items with their IDs
-  const currentItems: PlaylistItemResource[] = [];
-  let pageToken: string | undefined;
+  // Check if already in correct order (saves all API calls)
+  const alreadyOrdered = tracks.every((t, i) => t.position === i);
+  if (alreadyOrdered) return;
 
-  do {
-    const params = new URLSearchParams({
-      part: 'id,snippet',
-      playlistId,
-      maxResults: '50',
-    });
-    if (pageToken) {
-      params.set('pageToken', pageToken);
+  // Build array of original positions in desired order
+  // positions[i] = original position of item that should be at position i
+  const positions = tracks.map((t) => t.position);
+
+  // Find LIS - items at these indices are already in correct relative order
+  const lisIndices = findLIS(positions);
+
+  // Identify items that need to move (not in LIS), sorted by target position
+  const itemsToMove: { track: Track; targetPosition: number }[] = [];
+  for (let i = 0; i < tracks.length; i++) {
+    if (!lisIndices.has(i)) {
+      itemsToMove.push({ track: tracks[i], targetPosition: i });
     }
-
-    const data = await youtubeFetch(`/playlistItems?${params.toString()}`, accessToken);
-    currentItems.push(...data.items);
-    pageToken = data.nextPageToken;
-  } while (pageToken);
-
-  // Delete all items
-  for (const item of currentItems) {
-    await youtubeFetch(`/playlistItems?id=${item.id}`, accessToken, {
-      method: 'DELETE',
-    });
   }
+  itemsToMove.sort((a, b) => a.targetPosition - b.targetPosition);
 
-  // Re-add items in the new order
-  for (const track of tracks) {
-    await youtubeFetch('/playlistItems?part=snippet', accessToken, {
-      method: 'POST',
-      body: JSON.stringify({
-        snippet: {
-          playlistId,
-          resourceId: {
-            kind: 'youtube#video',
-            videoId: track.uri,
-          },
-        },
-      }),
-    });
+  // Track current playlist state to handle position shifts
+  // Start with items in their original order
+  const currentState = [...tracks].sort((a, b) => a.position - b.position);
+
+  // Execute moves
+  for (const { track, targetPosition } of itemsToMove) {
+    // Find current position of this item
+    const currentPosition = currentState.findIndex((t) => t.id === track.id);
+    if (currentPosition === targetPosition) continue;
+
+    // Call YouTube API to update position
+    await updatePlaylistItemPosition(
+      accessToken,
+      playlistId,
+      track.id,
+      track.uri,
+      targetPosition
+    );
+
+    // Update local state to reflect the move
+    const [movedItem] = currentState.splice(currentPosition, 1);
+    currentState.splice(targetPosition, 0, movedItem);
   }
 }

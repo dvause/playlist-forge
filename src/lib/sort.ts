@@ -29,9 +29,5 @@ export function sortTracks(tracks: Track[], option: SortOption): Track[] {
     return option.direction === 'asc' ? comparison : -comparison;
   });
 
-  // Update positions
-  return sorted.map((track, index) => ({
-    ...track,
-    position: index,
-  }));
+  return sorted;
 }

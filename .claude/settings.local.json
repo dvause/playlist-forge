@@ -12,7 +12,8 @@
       "Bash(then grep \"YOUTUBE\" .env.local)",
       "Bash(else echo \".env.local not found\")",
       "Bash(fi)",
-      "Bash(then grep \"YOUTUBE_CLIENT\" .env.local)"
+      "Bash(then grep \"YOUTUBE_CLIENT\" .env.local)",
+      "Bash(npm run lint:*)"
     ]
   }
 }

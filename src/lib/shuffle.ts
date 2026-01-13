@@ -34,11 +34,6 @@ export function smartShuffle(tracks: Track[]): Track[] {
     tracksByArtist.set(artist, fisherYatesShuffle(artistTracks));
   }
 
-  // Create a list of (artist, track) pairs sorted by count descending
-  const artistCounts = Array.from(tracksByArtist.entries())
-    .map(([artist, artistTracks]) => ({ artist, count: artistTracks.length }))
-    .sort((a, b) => b.count - a.count);
-
   const result: Track[] = [];
   const artistQueues = new Map<string, Track[]>();
 
@@ -47,59 +42,33 @@ export function smartShuffle(tracks: Track[]): Track[] {
   }
 
   let lastArtist: string | null = null;
-  let consecutiveAttempts = 0;
-  const maxAttempts = tracks.length * 2;
 
-  while (result.length < tracks.length && consecutiveAttempts < maxAttempts) {
-    // Find an artist that's not the same as the last one
-    let selectedArtist: string | null = null;
-    let selectedTrack: Track | null = null;
+  while (result.length < tracks.length) {
+    // Get artists with remaining tracks
+    const availableArtists = Array.from(artistQueues.entries())
+      .filter(([, queue]) => queue.length > 0)
+      .map(([artist]) => artist);
 
-    // Try to find a different artist with remaining tracks
-    for (const { artist } of artistCounts) {
-      const queue = artistQueues.get(artist)!;
-      if (queue.length > 0 && artist !== lastArtist) {
-        selectedArtist = artist;
-        selectedTrack = queue.shift()!;
-        break;
-      }
-    }
+    if (availableArtists.length === 0) break;
 
-    // If no different artist available, use the same artist
-    if (!selectedTrack) {
-      for (const { artist } of artistCounts) {
-        const queue = artistQueues.get(artist)!;
-        if (queue.length > 0) {
-          selectedArtist = artist;
-          selectedTrack = queue.shift()!;
-          break;
-        }
-      }
-    }
+    // Prefer artists different from the last one
+    const differentArtists = availableArtists.filter(a => a !== lastArtist);
+    const candidateArtists = differentArtists.length > 0 ? differentArtists : availableArtists;
 
-    if (selectedTrack && selectedArtist) {
-      result.push(selectedTrack);
-      lastArtist = selectedArtist;
-      consecutiveAttempts = 0;
-    } else {
-      consecutiveAttempts++;
-    }
+    // Randomly select from candidates
+    const selectedArtist = candidateArtists[Math.floor(Math.random() * candidateArtists.length)];
+    const selectedTrack = artistQueues.get(selectedArtist)!.shift()!;
+
+    result.push(selectedTrack);
+    lastArtist = selectedArtist;
   }
 
-  // Update positions
-  return result.map((track, index) => ({
-    ...track,
-    position: index,
-  }));
+  return result;
 }
 
 /**
  * Simple shuffle without smart distribution
  */
 export function simpleShuffle(tracks: Track[]): Track[] {
-  const shuffled = fisherYatesShuffle(tracks);
-  return shuffled.map((track, index) => ({
-    ...track,
-    position: index,
-  }));
+  return fisherYatesShuffle(tracks);
 }
