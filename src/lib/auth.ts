@@ -47,5 +47,5 @@ export function isTokenExpired(tokens: AuthTokens): boolean {
 }
 
 export function getBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  return process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3000';
 }

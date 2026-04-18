@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthTokens, isTokenExpired, setAuthTokens } from '@/lib/auth';
-import { reorderSpotifyPlaylist, refreshSpotifyToken } from '@/lib/spotify';
+import { reorderSpotifyPlaylist, refreshSpotifyToken, SpotifyApiError } from '@/lib/spotify';
 import { reorderYouTubePlaylist, refreshYouTubeToken } from '@/lib/youtube';
 import { Track } from '@/types';
 
@@ -51,6 +51,7 @@ export async function POST(
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Failed to save playlist:', err);
-    return NextResponse.json({ error: 'Failed to save playlist' }, { status: 500 });
+    const status = err instanceof SpotifyApiError ? err.status : 500;
+    return NextResponse.json({ error: 'Failed to save playlist' }, { status });
   }
 }

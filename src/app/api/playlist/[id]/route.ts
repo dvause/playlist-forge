@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthTokens, isTokenExpired, setAuthTokens } from '@/lib/auth';
-import { getSpotifyPlaylistTracks, getAllSpotifyPlaylistTracks, refreshSpotifyToken } from '@/lib/spotify';
+import { getSpotifyPlaylistTracks, getAllSpotifyPlaylistTracks, refreshSpotifyToken, SpotifyApiError } from '@/lib/spotify';
 import { getYouTubePlaylistTracks, getAllYouTubePlaylistTracks, refreshYouTubeToken } from '@/lib/youtube';
 
 export async function GET(
@@ -59,6 +59,7 @@ export async function GET(
     }
   } catch (err) {
     console.error('Failed to fetch playlist tracks:', err);
-    return NextResponse.json({ error: 'Failed to fetch playlist tracks' }, { status: 500 });
+    const status = err instanceof SpotifyApiError ? err.status : 500;
+    return NextResponse.json({ error: 'Failed to fetch playlist tracks' }, { status });
   }
 }
