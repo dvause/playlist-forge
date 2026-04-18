@@ -11,6 +11,16 @@ const SCOPES = [
   'playlist-modify-public',
 ].join(' ');
 
+export class SpotifyApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+    this.name = 'SpotifyApiError';
+  }
+}
+
 export function getSpotifyAuthUrl(): string {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const redirectUri = `${getBaseUrl()}/api/auth/spotify/callback`;
@@ -102,7 +112,7 @@ async function spotifyFetch(endpoint: string, accessToken: string, options?: Req
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Spotify API error: ${response.status} - ${error}`);
+    throw new SpotifyApiError(`Spotify API error: ${response.status} - ${error}`, response.status);
   }
 
   if (response.status === 204) {
@@ -147,25 +157,17 @@ export async function getSpotifyPlaylistTracks(
   offset: number = 0,
   limit: number = 50
 ): Promise<PaginatedTracks> {
+  const boundedLimit = Math.min(limit, 50);
   const data = await spotifyFetch(
-    `/playlists/${playlistId}/tracks?offset=${offset}&limit=${limit}&fields=items(track(id,name,uri,duration_ms,artists,album)),total,offset,limit`,
+    `/playlists/${playlistId}/tracks?offset=${offset}&limit=${boundedLimit}&additional_types=episode&fields=items(track(type,id,name,uri,duration_ms,artists,album,show)),total,offset,limit`,
     accessToken
   );
 
   const tracks: Track[] = data.items
     .filter((item: { track: unknown }) => item.track !== null)
-    .map((item: { track: SpotifyTrack }, index: number) => ({
-      id: item.track.id,
-      title: item.track.name,
-      artist: item.track.artists.map((a: { name: string }) => a.name).join(', '),
-      artistId: item.track.artists[0]?.id,
-      album: item.track.album.name,
-      albumImageUrl: item.track.album.images?.[0]?.url,
-      duration: item.track.duration_ms,
-      releaseDate: item.track.album.release_date,
-      uri: item.track.uri,
-      position: offset + index,
-    }));
+    .map((item: { track: SpotifyPlaylistItem }, index: number) =>
+      mapSpotifyPlaylistItem(item.track, offset + index)
+    );
 
   return {
     tracks,
@@ -177,6 +179,7 @@ export async function getSpotifyPlaylistTracks(
 }
 
 interface SpotifyTrack {
+  type: 'track';
   id: string;
   name: string;
   uri: string;
@@ -189,13 +192,59 @@ interface SpotifyTrack {
   };
 }
 
+interface SpotifyEpisode {
+  type: 'episode';
+  id: string;
+  name: string;
+  uri: string;
+  duration_ms: number;
+  release_date?: string;
+  images?: Array<{ url: string }>;
+  show?: {
+    name: string;
+    publisher?: string;
+    images?: Array<{ url: string }>;
+  };
+}
+
+type SpotifyPlaylistItem = SpotifyTrack | SpotifyEpisode;
+
+function mapSpotifyPlaylistItem(item: SpotifyPlaylistItem, position: number): Track {
+  if (item.type === 'episode') {
+    return {
+      id: item.id,
+      title: item.name,
+      artist: item.show?.publisher || item.show?.name || 'Unknown',
+      album: item.show?.name,
+      albumImageUrl: item.images?.[0]?.url || item.show?.images?.[0]?.url,
+      duration: item.duration_ms,
+      releaseDate: item.release_date,
+      uri: item.uri,
+      position,
+    };
+  }
+
+  return {
+    id: item.id,
+    title: item.name,
+    artist: item.artists.map((a: { name: string }) => a.name).join(', '),
+    artistId: item.artists[0]?.id,
+    album: item.album.name,
+    albumImageUrl: item.album.images?.[0]?.url,
+    duration: item.duration_ms,
+    releaseDate: item.album.release_date,
+    uri: item.uri,
+    position,
+  };
+}
+
 export async function getAllSpotifyPlaylistTracks(
   accessToken: string,
   playlistId: string
 ): Promise<Track[]> {
   const allTracks: Track[] = [];
   let offset = 0;
-  const limit = 100;
+  const limit = 50;
   let hasMore = true;
 
   while (hasMore) {

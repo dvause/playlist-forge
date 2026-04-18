@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Track, SortOption, ServiceType } from '@/types';
@@ -318,9 +319,11 @@ export default function PlaylistPage() {
                 <span className="text-gray-500 text-sm">{startIndex + index + 1}</span>
                 <div className="flex items-center gap-3 min-w-0">
                   {track.albumImageUrl && (
-                    <img
+                    <Image
                       src={track.albumImageUrl}
                       alt=""
+                      width={40}
+                      height={40}
                       className="w-10 h-10 rounded object-cover flex-shrink-0"
                     />
                   )}
