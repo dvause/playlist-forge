@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Playlist, ServiceType } from '@/types';
@@ -109,9 +110,11 @@ export default function Dashboard() {
               >
                 <div className="aspect-square mb-3 rounded-lg overflow-hidden bg-gray-700">
                   {playlist.imageUrl ? (
-                    <img
+                    <Image
                       src={playlist.imageUrl}
                       alt={playlist.name}
+                      width={320}
+                      height={320}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />
                   ) : (

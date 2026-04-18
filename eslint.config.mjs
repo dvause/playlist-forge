@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Repo-generated output that should not be linted:
+    ".sst/**",
+    ".open-next/**",
   ]),
 ]);
 

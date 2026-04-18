@@ -94,10 +94,8 @@ export async function refreshYouTubeToken(refreshToken: string): Promise<AuthTok
 
 async function youtubeFetch(endpoint: string, accessToken: string, options?: RequestInit) {
   const url = endpoint.startsWith('http') ? endpoint : `${YOUTUBE_API_BASE}${endpoint}`;
-  const separator = url.includes('?') ? '&' : '?';
-  const urlWithKey = url;
 
-  const response = await fetch(urlWithKey, {
+  const response = await fetch(url, {
     ...options,
     headers: {
       Authorization: `Bearer ${accessToken}`,
